@@ -52,9 +52,9 @@ def d1_query(sql):
 # --- 3. 获取并自动续期 Coze Token (核心逻辑) ---
 def get_coze_auth():
     # 从 KV 读取种子
-    old_refresh_token = get_kv_value("COZE_REFRESH_TOKEN")
+    old_refresh_token = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
     if not old_refresh_token:
-        raise Exception("KV 中找不到 COZE_REFRESH_TOKEN，请先手动在 CF 后台添加。")
+        raise Exception("KV 中找不到 COZE_LINGGO_REFRESH_TOKEN，请先手动在 CF 后台添加。")
 
     oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
 
@@ -62,8 +62,8 @@ def get_coze_auth():
     new_token = oauth_app.refresh_access_token(refresh_token=old_refresh_token)
 
     # 将新的 token 立刻存回 KV，保证下次脚本运行能拿到最新的“种子”
-    set_kv_value("ACCESS_TOKEN", new_token.access_token)
-    set_kv_value("COZE_REFRESH_TOKEN", new_token.refresh_token)
+    # set_kv_value("ACCESS_TOKEN", new_token.access_token)
+    set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
 
     return new_token.access_token
 

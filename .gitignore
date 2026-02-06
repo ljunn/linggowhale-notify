@@ -60,3 +60,4 @@ token.txt
 ehthumbs.db
 Thumbs.db
 *.log
+.refresh_token
