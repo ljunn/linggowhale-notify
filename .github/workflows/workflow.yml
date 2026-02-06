@@ -1,0 +1,28 @@
+name: Wechat RSS Sync
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时运行一次
+  workflow_dispatch:      # 支持手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: aoikemuri
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run sync
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
+          D1_DB_ID: ${{ secrets.D1_DB_ID }}
+          COZE_CLIENT_ID: ${{ secrets.COZE_CLIENT_ID }}
+          COZE_CLIENT_SECRET: ${{ secrets.COZE_CLIENT_SECRET }}
+          COZE_WORKFLOW_ID: ${{ secrets.COZE_WORKFLOW_ID }}
+        run: python main.py

@@ -1,0 +1,62 @@
+# --- PyCharm / JetBrains ---
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments (Miniconda / venv) ---
+# 建议不要把环境文件夹放到项目中，如果放了，必须忽略
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+conda-env/
+
+# --- Environment Variables (敏感信息) ---
+# 既然你用了 GitHub Secrets，本地的 .env 或测试配置文件千万别传
+.env
+.venv
+env.ini
+coze_oauth_config.json
+token.txt
+
+# --- Cloudflare / D1 / Local DB ---
+# 忽略本地测试产生的数据库文件
+*.db
+*.sqlite3
+
+# --- OS / Logs ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
