@@ -58,7 +58,7 @@ class RefreshFileLock:
 FEISHU_WEBHOOK_URL = "https://open.feishu.cn/open-apis/bot/v2/hook/5c348238-aee4-43f0-9720-68a7ceb5a244"
 
 # 线程池：Coze 工作流异步执行，不阻塞主流程
-coze_executor = ThreadPoolExecutor(max_workers=5)
+coze_executor = ThreadPoolExecutor(max_workers=10)
 
 # 缓存：避免重复请求 KV
 _lingowhale_tokens_cache = None
