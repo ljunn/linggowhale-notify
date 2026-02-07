@@ -78,5 +78,69 @@
     "channel_ids": [
       "67cc08a19a4297b6148b295c"
     ]
+  },
+  {
+    "name": "OpenAI News-公众号",
+    "parent_wiki_token": "AS83w7d0GiT2K3k4kndcg0hSntc",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "6819c2ce9c69993601f69acb"
+    ]
+  },
+  {
+    "name": "AI提效手册-聚合-公众号",
+    "parent_wiki_token": "PeM4wEmzQiJUbKkvwvjcubxcnQf",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "68d3ec1b685bba553f09f016"
+    ]
+  },
+  {
+    "name": "AI提效手册-聚合-公众号",
+    "parent_wiki_token": "PeM4wEmzQiJUbKkvwvjcubxcnQf",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "68d3ec1b685bba553f09f016"
+    ]
+  },
+  {
+    "name": "腾讯研究院-公众号",
+    "parent_wiki_token": "S51lwWSzMikWQMkcCr7cuJznnJg",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "67cc08a19a4297b6148b299c"
+    ]
+  },
+  {
+    "name": "AI信息Gap-公众号",
+    "parent_wiki_token": "Frlcw4fV8i0eIqk0YcZcY8v6nye",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "67cc08a89a4297b6148b34ed"
+    ]
+  },
+  {
+    "name": "十字路口Crossing-公众号",
+    "parent_wiki_token": "CtBewKHR1i7GjLkdRv8cEyqOnjg",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "67cc08a59a4297b6148b303b"
+    ]
+  },
+  {
+    "name": "学术AI大模型-公众号",
+    "parent_wiki_token": "IjnewcjGmi5rZUkdYLIceUs6nef",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "67cc08b09a4297b6148b410f"
+    ]
+  },
+  {
+    "name": "知识图谱科技-公众号",
+    "parent_wiki_token": "Tu0VwT5lEi4s0JkjKsAcN4pcnmh",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "67cc08a29a4297b6148b29df"
+    ]
   }
 ]
