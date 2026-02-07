@@ -217,12 +217,20 @@ def fetch_entry_detail(entry_id, entry_type=7):
 # --- 订阅 Feed 并获取详情 ---
 def _run_coze_workflow(coze_manager, title, content, space_id, parent_wiki_token):
     """在线程池中异步执行 Coze 工作流，auth 过期时自动续期重试"""
-    params = {
-        "content": content,
-        "title": title,
-        "space_id": space_id,
-        "parent_wiki_token": parent_wiki_token
-    }
+    # 过滤掉空值参数，避免 Coze 工作流 6014 错误
+    params = {}
+    if content:
+        params["content"] = content
+    if title:
+        params["title"] = title
+    if space_id:
+        params["space_id"] = space_id
+    if parent_wiki_token:
+        params["parent_wiki_token"] = parent_wiki_token
+
+    if not params:
+        print(f"  Coze 工作流跳过（无有效参数）: {title}")
+        return
 
     try:
         coze_manager.client.workflows.runs.create(
