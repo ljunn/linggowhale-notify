@@ -160,78 +160,20 @@ def get_lingowhale_tokens():
 
 # --- 获取并自动续期 Coze Token ---
 def get_coze_auth():
-    """从 KV 读取 refresh_token 并自动续期"""
-    lock = RefreshFileLock()
-    acquired = lock.acquire()
-    if not acquired:
-        # 若无法在限定时间内获取锁，说明可能有其他进程/线程正在刷新。
-        # 为避免并发刷新导致的轮换冲突，等待一小段时间后再次从 KV 读取最新值并尝试使用之。
-        # 这里选择在超时后再次尝试读取最新的 refresh_token，若仍无效则抛出异常。
-        latest = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
-        if not latest:
-            raise Exception("无法获取刷新锁，且 KV 中未找到 COZE_LINGGO_REFRESH_TOKEN。")
-        # 尝试用 KV 中的值去刷新（让调用方进一步处理失败）
-        oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
-        try:
-            new_token = oauth_app.refresh_access_token(refresh_token=latest)
-            # 将新的 refresh_token 存回 KV（覆盖）
-            set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
-            return new_token.access_token
-        except Exception as e:
-            raise Exception(f"无法获取刷新锁且使用 KV 中值刷新失败: {e}")
+    old_refresh_token = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
+    if not old_refresh_token:
+        raise Exception("KV 中找不到 COZE_LINGGO_REFRESH_TOKEN，请先手动在 CF 后台添加。")
 
-    try:
-        old_refresh_token = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
-        if not old_refresh_token:
-            raise Exception("KV 中找不到 COZE_LINGGO_REFRESH_TOKEN，请先手动在 CF 后台添加。")
+    oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
 
-        oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
+    # 自动续期：拿旧的换新的
+    new_token = oauth_app.refresh_access_token(refresh_token=old_refresh_token)
 
-        # 自动续期：拿旧的换新的
-        new_token = oauth_app.refresh_access_token(refresh_token=old_refresh_token)
+    # 将新的 refresh_token 存回 KV（原子写回）
+    set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
 
-        # 将新的 refresh_token 存回 KV（原子写回）
-        set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
+    return new_token.access_token
 
-        return new_token.access_token
-    finally:
-        lock.release()
-
-
-class CozeClientManager:
-    """管理 Coze 客户端，支持多线程安全的自动续期"""
-
-    def __init__(self, access_token):
-        self._lock = threading.Lock()
-        self._access_token = access_token
-        self._client = Coze(auth=TokenAuth(access_token), base_url=COZE_CN_BASE_URL)
-        self._refreshed = False  # 标记本轮是否已续期过，避免重复续期
-
-    @property
-    def client(self):
-        return self._client
-
-    def refresh_and_get_client(self):
-        """线程安全地续期并返回新的 client，同一轮只续期一次"""
-        with self._lock:
-            # 如果其他线程已经续期过了，直接返回新 client
-            if self._refreshed:
-                return self._client
-            try:
-                print("  Coze Token 过期，正在自动续期...")
-                new_access_token = get_coze_auth()
-                self._client = Coze(auth=TokenAuth(new_access_token), base_url=COZE_CN_BASE_URL)
-                self._access_token = new_access_token
-                self._refreshed = True
-                print("  Coze Token 续期成功")
-                return self._client
-            except Exception as e:
-                print(f"  Coze Token 续期失败: {e}")
-                send_feishu_notification(
-                    "Coze Token 续期失败告警",
-                    f"**错误信息**: {str(e)}\n**请检查 KV 中的 COZE_LINGGO_REFRESH_TOKEN 是否有效**"
-                )
-                raise
 
 
 # --- 爬虫：获取文章详情 ---
@@ -276,7 +218,7 @@ def fetch_entry_detail(entry_id, entry_type=7):
 
 
 # --- 订阅 Feed 并获取详情 ---
-def _run_coze_workflow(entry_id, coze_manager, title, content, space_id, parent_wiki_token):
+def _run_coze_workflow(entry_id, coze_token, title, content, space_id, parent_wiki_token):
     """在线程池中异步执行 Coze 工作流，auth 过期时自动续期重试"""
     # 过滤掉空值参数，避免 Coze 工作流 6014 错误
     params = {}
@@ -294,7 +236,9 @@ def _run_coze_workflow(entry_id, coze_manager, title, content, space_id, parent_
         return
 
     try:
-        coze_manager.client.workflows.runs.create(
+        _client = Coze(auth=TokenAuth(coze_token), base_url=COZE_CN_BASE_URL)
+
+        _client.workflows.runs.create(
             workflow_id=COZE_WORKFLOW_ID,
             parameters=params
         )
@@ -302,23 +246,10 @@ def _run_coze_workflow(entry_id, coze_manager, title, content, space_id, parent_
         # 入库标记已处理
         d1_query(f"INSERT INTO processed_articles (id) VALUES ('{entry_id}')")
     except Exception as e:
-        error_msg = str(e).lower()
-        # 判断是否为 auth 相关异常（token 过期/无效）
-        if "auth" in error_msg or "token" in error_msg or "unauthorized" in error_msg or "4100" in error_msg or "4101" in error_msg:
-            try:
-                new_client = coze_manager.refresh_and_get_client()
-                new_client.workflows.runs.create(
-                    workflow_id=COZE_WORKFLOW_ID,
-                    parameters=params
-                )
-                print(f"  Coze 工作流续期后重试成功: {title}")
-            except Exception as retry_e:
-                print(f"  Coze 工作流续期重试失败: {title} - {retry_e}")
-        else:
-            print(f"  Coze 工作流调用失败: {title} - {e}")
+        print(f"  Coze 工作流调用失败: {title} - {e}")
 
 
-def fetch_feed_data(cursor: str = "", channel_ids=None, space_id=None, parent_wiki_token=None, coze_manager=None):
+def fetch_feed_data(cursor: str = "", channel_ids=None, space_id=None, parent_wiki_token=None, coze_token=None):
     if channel_ids is None:
         channel_ids = []
 
@@ -373,12 +304,14 @@ def fetch_feed_data(cursor: str = "", channel_ids=None, space_id=None, parent_wi
                         print(f"  内容长度: {len(content)} 字")
 
                         # 异步调用 Coze 工作流，不阻塞主流程
-                        if coze_manager and COZE_WORKFLOW_ID:
-                            coze_executor.submit(
-                                _run_coze_workflow,
-                                entry_id,coze_manager, title, html_content or content, space_id, parent_wiki_token
-                            )
+                        # if coze_manager and COZE_WORKFLOW_ID:
 
+                        # _run_coze_workflow(entry_id, coze_manager, title,  html_content or content, space_id, parent_wiki_token)
+
+                        coze_executor.submit(
+                            _run_coze_workflow,
+                            entry_id, coze_token, title, html_content or content, space_id, parent_wiki_token
+                        )
 
                 else:
                     should_find_next_page = False
@@ -391,7 +324,7 @@ def fetch_feed_data(cursor: str = "", channel_ids=None, space_id=None, parent_wi
                     channel_ids=channel_ids,
                     space_id=space_id,
                     parent_wiki_token=parent_wiki_token,
-                    coze_manager=coze_manager
+                    coze_token=get_coze_auth()
                 )
 
         else:
@@ -403,13 +336,10 @@ def fetch_feed_data(cursor: str = "", channel_ids=None, space_id=None, parent_wi
 
 def main():
     try:
-        # 获取 Coze access_token，创建带自动续期的客户端管理器
-        coze_access_token = get_coze_auth()
-        coze_manager = CozeClientManager(coze_access_token)
-
         # 读取配置
         with open('config.json', 'r') as f:
             configs = json.load(f)
+
 
         for cfg in configs:
             print(f"\n处理订阅源: {cfg.get('name')}")
@@ -417,7 +347,7 @@ def main():
                 channel_ids=cfg.get('channel_ids', []),
                 space_id=cfg.get('space_id'),
                 parent_wiki_token=cfg.get('parent_wiki_token'),
-                coze_manager=coze_manager
+                coze_token = get_coze_auth()
             )
 
         # 等待所有异步 Coze 任务完成
