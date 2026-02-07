@@ -3,6 +3,8 @@ import json
 from datetime import datetime
 import os
 import threading
+import fcntl
+import time
 from concurrent.futures import ThreadPoolExecutor
 from cozepy import Coze, TokenAuth, WebOAuthApp, COZE_CN_BASE_URL
 
@@ -14,6 +16,43 @@ D1_DB_ID = os.getenv("D1_DB_ID")
 COZE_CLIENT_ID = os.getenv("COZE_CLIENT_ID")
 COZE_CLIENT_SECRET = os.getenv("COZE_CLIENT_SECRET")
 COZE_WORKFLOW_ID = os.getenv("COZE_WORKFLOW_ID")
+
+# 文件锁路径：用于在多线程/多进程环境中保证只有一个主体执行 refresh
+REFRESH_LOCK_FILE = "/tmp/coze_refresh_refresh.lock"
+
+
+class RefreshFileLock:
+    """简单的基于文件的互斥锁，适用于单机多进程/多线程场景"""
+
+    def __init__(self, lock_path: str = REFRESH_LOCK_FILE, timeout: float = 30.0, poll_interval: float = 0.1):
+        self.lock_path = lock_path
+        self.timeout = timeout
+        self.poll_interval = poll_interval
+        self._fd = None
+
+    def acquire(self) -> bool:
+        start = time.time()
+        # 打开文件（若不存在则创建）
+        self._fd = open(self.lock_path, "w")
+        while True:
+            try:
+                # 非阻塞独占锁
+                fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return True
+            except BlockingIOError:
+                if time.time() - start > self.timeout:
+                    return False
+                time.sleep(self.poll_interval)
+
+    def release(self) -> None:
+        try:
+            if self._fd:
+                fcntl.flock(self._fd, fcntl.LOCK_UN)
+                self._fd.close()
+                self._fd = None
+        except Exception:
+            # 释放失败不应抛出异常影响主流程
+            pass
 
 # 飞书 Webhook 地址
 FEISHU_WEBHOOK_URL = "https://open.feishu.cn/open-apis/bot/v2/hook/5c348238-aee4-43f0-9720-68a7ceb5a244"
@@ -122,19 +161,41 @@ def get_lingowhale_tokens():
 # --- 获取并自动续期 Coze Token ---
 def get_coze_auth():
     """从 KV 读取 refresh_token 并自动续期"""
-    old_refresh_token = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
-    if not old_refresh_token:
-        raise Exception("KV 中找不到 COZE_LINGGO_REFRESH_TOKEN，请先手动在 CF 后台添加。")
+    lock = RefreshFileLock()
+    acquired = lock.acquire()
+    if not acquired:
+        # 若无法在限定时间内获取锁，说明可能有其他进程/线程正在刷新。
+        # 为避免并发刷新导致的轮换冲突，等待一小段时间后再次从 KV 读取最新值并尝试使用之。
+        # 这里选择在超时后再次尝试读取最新的 refresh_token，若仍无效则抛出异常。
+        latest = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
+        if not latest:
+            raise Exception("无法获取刷新锁，且 KV 中未找到 COZE_LINGGO_REFRESH_TOKEN。")
+        # 尝试用 KV 中的值去刷新（让调用方进一步处理失败）
+        oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
+        try:
+            new_token = oauth_app.refresh_access_token(refresh_token=latest)
+            # 将新的 refresh_token 存回 KV（覆盖）
+            set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
+            return new_token.access_token
+        except Exception as e:
+            raise Exception(f"无法获取刷新锁且使用 KV 中值刷新失败: {e}")
 
-    oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
+    try:
+        old_refresh_token = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
+        if not old_refresh_token:
+            raise Exception("KV 中找不到 COZE_LINGGO_REFRESH_TOKEN，请先手动在 CF 后台添加。")
 
-    # 自动续期：拿旧的换新的
-    new_token = oauth_app.refresh_access_token(refresh_token=old_refresh_token)
+        oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
 
-    # 将新的 refresh_token 存回 KV
-    set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
+        # 自动续期：拿旧的换新的
+        new_token = oauth_app.refresh_access_token(refresh_token=old_refresh_token)
 
-    return new_token.access_token
+        # 将新的 refresh_token 存回 KV（原子写回）
+        set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
+
+        return new_token.access_token
+    finally:
+        lock.release()
 
 
 class CozeClientManager:
