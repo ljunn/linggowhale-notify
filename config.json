@@ -1,10 +1,74 @@
 [
   {
+    "name": "微信公众号:中国标准信息服务网",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "67cc08b19a4297b6148b4301"
+    ]
+  },
+  {
+    "name": "微信公众号:中研标科标准化",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "68938689771e0a1cc8dbabdf"
+    ]
+  },
+  {
+    "name": "微信公众号:中国标准化",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "683532525eecf692b447b26b"
+    ]
+  },
+  {
+    "name": "微信公众号:又见标准化",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "6891d4f3165a7aa12566a7f7"
+    ]
+  },
+  {
+    "name": "微信公众号:大数据技术标准推进委员会",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "689d46601cca9e430b6f5957"
+    ]
+  },
+  {
     "name": "微信公众号:全国数标委",
-    "parent_wiki_token": "ElQcwXdkWiGJG2kZyT6cAsEpnxd",
-    "space_id": "7603406439398247650",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
     "channel_ids": [
       "6813a8c550ec085890ddaf46"
+    ]
+  },
+  {
+    "name": "微信公众号:中国电子技术标准化研究院",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "689373451cd03b310bdd8733"
+    ]
+  },
+  {
+    "name": "微信公众号:工信部人工智能标准化技术委员会",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "681b64608339634c41a7fa01"
+    ]
+  },
+  {
+    "name": "微信公众号:智能计算标准化",
+    "parent_wiki_token": "M5IWwqup1iQNj5kpxpwcZvAUnFg",
+    "space_id": "7604012971521510606",
+    "channel_ids": [
+      "6895a201da939603fa284c0a"
     ]
   }
 ]

@@ -250,7 +250,7 @@ def fetch_feed_data(cursor: str = "", channel_ids=None, space_id=None, parent_wi
                     channel_ids=channel_ids,
                     space_id=space_id,
                     parent_wiki_token=parent_wiki_token,
-                    coze_access_token=coze_access_token
+                    coze_access_token= get_coze_auth()
                 )
 
         else:
