@@ -215,7 +215,7 @@ def fetch_entry_detail(entry_id, entry_type=7):
 
 
 # --- 订阅 Feed 并获取详情 ---
-def _run_coze_workflow(coze_manager, title, content, space_id, parent_wiki_token):
+def _run_coze_workflow(entry_id, coze_manager, title, content, space_id, parent_wiki_token):
     """在线程池中异步执行 Coze 工作流，auth 过期时自动续期重试"""
     # 过滤掉空值参数，避免 Coze 工作流 6014 错误
     params = {}
@@ -238,6 +238,8 @@ def _run_coze_workflow(coze_manager, title, content, space_id, parent_wiki_token
             parameters=params
         )
         print(f"  Coze 工作流调用成功: {title}")
+        # 入库标记已处理
+        d1_query(f"INSERT INTO processed_articles (id) VALUES ('{entry_id}')")
     except Exception as e:
         error_msg = str(e).lower()
         # 判断是否为 auth 相关异常（token 过期/无效）
@@ -313,11 +315,10 @@ def fetch_feed_data(cursor: str = "", channel_ids=None, space_id=None, parent_wi
                         if coze_manager and COZE_WORKFLOW_ID:
                             coze_executor.submit(
                                 _run_coze_workflow,
-                                coze_manager, title, html_content or content, space_id, parent_wiki_token
+                                entry_id,coze_manager, title, html_content or content, space_id, parent_wiki_token
                             )
 
-                        # 入库标记已处理
-                        d1_query(f"INSERT INTO processed_articles (id) VALUES ('{entry_id}')")
+
                 else:
                     should_find_next_page = False
                     print(f"【已存在】: {title}")
