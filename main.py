@@ -21,39 +21,6 @@ COZE_WORKFLOW_ID = os.getenv("COZE_WORKFLOW_ID")
 REFRESH_LOCK_FILE = "/tmp/coze_refresh_refresh.lock"
 
 
-class RefreshFileLock:
-    """简单的基于文件的互斥锁，适用于单机多进程/多线程场景"""
-
-    def __init__(self, lock_path: str = REFRESH_LOCK_FILE, timeout: float = 30.0, poll_interval: float = 0.1):
-        self.lock_path = lock_path
-        self.timeout = timeout
-        self.poll_interval = poll_interval
-        self._fd = None
-
-    def acquire(self) -> bool:
-        start = time.time()
-        # 打开文件（若不存在则创建）
-        self._fd = open(self.lock_path, "w")
-        while True:
-            try:
-                # 非阻塞独占锁
-                fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return True
-            except BlockingIOError:
-                if time.time() - start > self.timeout:
-                    return False
-                time.sleep(self.poll_interval)
-
-    def release(self) -> None:
-        try:
-            if self._fd:
-                fcntl.flock(self._fd, fcntl.LOCK_UN)
-                self._fd.close()
-                self._fd = None
-        except Exception:
-            # 释放失败不应抛出异常影响主流程
-            pass
-
 # 飞书 Webhook 地址
 FEISHU_WEBHOOK_URL = "https://open.feishu.cn/open-apis/bot/v2/hook/5c348238-aee4-43f0-9720-68a7ceb5a244"
 
@@ -158,21 +125,40 @@ def get_lingowhale_tokens():
     return _lingowhale_tokens_cache
 
 
-# --- 获取并自动续期 Coze Token ---
+# 在全局定义一个变量存储 Access Token，避免重复刷新
+_current_access_token = None
+
+
 def get_coze_auth():
+    global _current_access_token
+
+    # 如果本次运行已经刷新过了，直接返回，不要再去刷第二次！
+    if _current_access_token:
+        return _current_access_token
+
     old_refresh_token = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
+    # 清理掉可能的换行符或空格
+    old_refresh_token = old_refresh_token.strip() if old_refresh_token else None
+
     if not old_refresh_token:
-        raise Exception("KV 中找不到 COZE_LINGGO_REFRESH_TOKEN，请先手动在 CF 后台添加。")
+        raise Exception("KV 中找不到有效 Token")
 
     oauth_app = WebOAuthApp(client_id=COZE_CLIENT_ID, client_secret=COZE_CLIENT_SECRET, base_url=COZE_CN_BASE_URL)
 
-    # 自动续期：拿旧的换新的
-    new_token = oauth_app.refresh_access_token(refresh_token=old_refresh_token)
+    try:
+        print(f"正在请求 Coze Token 刷新...")
+        new_token = oauth_app.refresh_access_token(refresh_token=old_refresh_token)
 
-    # 将新的 refresh_token 存回 KV（原子写回）
-    set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
+        # 立即存入 KV
+        set_kv_value("COZE_LINGGO_REFRESH_TOKEN", new_token.refresh_token)
 
-    return new_token.access_token
+        # 缓存到内存
+        _current_access_token = new_token.access_token
+        print("Token 刷新成功并已写入 KV")
+        return _current_access_token
+    except Exception as e:
+        print(f"Token 刷新彻底失败: {str(e)}")
+        raise e
 
 
 
@@ -340,6 +326,7 @@ def main():
         with open('config.json', 'r') as f:
             configs = json.load(f)
 
+        token = get_coze_auth()
 
         for cfg in configs:
             print(f"\n处理订阅源: {cfg.get('name')}")
@@ -347,7 +334,7 @@ def main():
                 channel_ids=cfg.get('channel_ids', []),
                 space_id=cfg.get('space_id'),
                 parent_wiki_token=cfg.get('parent_wiki_token'),
-                coze_token = get_coze_auth()
+                coze_token = token
             )
 
         # 等待所有异步 Coze 任务完成
