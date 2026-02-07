@@ -198,5 +198,21 @@
     "channel_ids": [
       "67e27c1a2661e0dbfe2c4e68"
     ]
+  },
+  {
+    "name": "VibeCoding日记-公众号",
+    "parent_wiki_token": "P3JPw1UVpiooBpkr3IbcIvwlnHd",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "67e22823b635161aff43ae83"
+    ]
+  },
+  {
+    "name": "AI小医-公众号",
+    "parent_wiki_token": "QWKiwffTkiLa6Dk90COcFs7cn4c",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "680c91509ecfaf8cfaac3dd2"
+    ]
   }
 ]
