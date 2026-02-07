@@ -125,20 +125,11 @@ def get_lingowhale_tokens():
     return _lingowhale_tokens_cache
 
 
-# 在全局定义一个变量存储 Access Token，避免重复刷新
-_current_access_token = None
 
 
 def get_coze_auth():
-    global _current_access_token
-
-    # 如果本次运行已经刷新过了，直接返回，不要再去刷第二次！
-    if _current_access_token:
-        return _current_access_token
 
     old_refresh_token = get_kv_value("COZE_LINGGO_REFRESH_TOKEN")
-    # 清理掉可能的换行符或空格
-    old_refresh_token = old_refresh_token.strip() if old_refresh_token else None
 
     if not old_refresh_token:
         raise Exception("KV 中找不到有效 Token")
