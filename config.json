@@ -70,5 +70,13 @@
     "channel_ids": [
       "6895a201da939603fa284c0a"
     ]
+  },
+  {
+    "name": "量子位-公众号",
+    "parent_wiki_token": "EtZGwDbw1iIwBSkFem4cKi1zn4g",
+    "space_id": "7604144701372894409",
+    "channel_ids": [
+      "67cc08a19a4297b6148b295c"
+    ]
   }
 ]
